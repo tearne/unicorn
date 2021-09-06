@@ -15,7 +15,7 @@ pub struct Unicorn {
 
 impl Unicorn {
     pub fn new() -> Self {
-        let mut spi = Spidev::open("/dev/spidev0.0").expect("Do you have sufficient permissions to /dev/spidev0.0?");
+        let mut spi = Spidev::open("/dev/spidev0.0").expect("Do you have sufficient permissions to '/dev/spidev0.0' ?");
         let options = SpidevOptions::new()
             .bits_per_word(8)
             .max_speed_hz(9_000_000)
@@ -30,6 +30,15 @@ impl Unicorn {
         display.reset();
         display
     }
+
+    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB) {
+        let idx = x + y * 16;
+        assert!(x < 16, "LED x index out of range: {}", idx);
+        assert!(y < 16, "LED y index out of range: {}", idx);
+
+        self.set_idx(idx, rgb);
+    }
+
     pub fn set_idx(&mut self, idx: usize, rgb: &RGB) {
         // Buffer indexes are offset by 1 because of 0x72 at start
         let i = idx * 3 + 1;
@@ -68,18 +77,18 @@ mod tests {
         let g = RGB::new(0, 255, 0);
         let b = RGB::new(0, 0, 255);
 
-        display.set_idx(0, &r);
-        display.set_idx(1, &g);
-        display.set_idx(2, &b);
+        display.set_xy(0,0, &r);
+        display.set_xy(1, 0, &r);
+        display.set_xy(2, 0, &r);
 
-        display.set_idx(118, &r);
-        display.set_idx(119, &g);
-        display.set_idx(120, &b);
+        display.set_xy(3, 0, &r);
+        display.set_xy(4, 0, &g);
+        display.set_xy(4, 1, &b);
 
-        display.set_idx(253, &r);
-        display.set_idx(254, &g);
-        display.set_idx(255, &b);
+        display.set_xy(4, 2, &b);
+        display.set_xy(4, 3, &b);
+        display.set_xy(4, 4, &b);
         display.flush();
-        std::thread::sleep(Duration::from_millis(5000));
+        std::thread::sleep(Duration::from_millis(10000));
     }
 }
