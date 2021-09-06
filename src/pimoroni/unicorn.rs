@@ -15,7 +15,7 @@ pub struct Unicorn {
 
 impl Unicorn {
     pub fn new() -> Self {
-        let mut spi = Spidev::open("/dev/spidev0.0").expect("Do you have sufficient permissions?");
+        let mut spi = Spidev::open("/dev/spidev0.0").expect("Do you have sufficient permissions to /dev/spidev0.0?");
         let options = SpidevOptions::new()
             .bits_per_word(8)
             .max_speed_hz(9_000_000)
