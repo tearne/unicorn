@@ -31,7 +31,7 @@ impl Unicorn {
         display
     }
 
-    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB) {
+    pub fn set_xy(&mut self, x: u8, y: u8, rgb: &RGB) {
         let idx = x + y * 16;
         assert!(x < 16, "LED x index out of range: {}", idx);
         assert!(y < 16, "LED y index out of range: {}", idx);
@@ -39,9 +39,9 @@ impl Unicorn {
         self.set_idx(idx, rgb);
     }
 
-    pub fn set_idx(&mut self, idx: usize, rgb: &RGB) {
+    pub fn set_idx(&mut self, idx: u8, rgb: &RGB) {
         // Buffer indexes are offset by 1 because of 0x72 at start
-        let i = idx * 3 + 1;
+        let i = idx as usize * 3 + 1;
         self.buffer[i] = rgb.r;
         self.buffer[i + 1] = rgb.g;
         self.buffer[i + 2] = rgb.b;
