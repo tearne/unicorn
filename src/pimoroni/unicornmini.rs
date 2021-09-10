@@ -268,7 +268,7 @@ impl UnicornMini {
         self.button_rx.clone()
     }
 
-    pub fn set_xy(&mut self, x: u8, y: u8, rgb: &RGB) {
+    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB) {
         let idx = x * 7 + y;
         assert!(x < 17, "LED x index out of range: {}", idx);
         assert!(y < 7, "LED y index out of range: {}", idx);
@@ -276,9 +276,9 @@ impl UnicornMini {
         self.set_idx(idx, rgb);
     }
 
-    pub fn set_idx(&mut self, idx: u8, rgb: &RGB) {
+    pub fn set_idx(&mut self, idx: usize, rgb: &RGB) {
         assert!(idx < 119, "LED index out of range: {}", idx);
-        let [ir, ig, ib] = LUT[idx as usize];
+        let [ir, ig, ib] = LUT[idx];
         self.data_buf[ir] = rgb.r;
         self.data_buf[ig] = rgb.g;
         self.data_buf[ib] = rgb.b;
