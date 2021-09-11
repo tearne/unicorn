@@ -10,7 +10,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-use super::RGB;
+use crate::RGB;
 
 // Based on:
 // https://github.com/pimoroni/unicornhatmini-python/blob/master/library/unicornhatmini/__init__.py

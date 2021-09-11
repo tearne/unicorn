@@ -1,7 +1,8 @@
 use std::{io::Write, time::Duration};
 
-use super::RGB;
 use spidev::{SpiModeFlags, Spidev, SpidevOptions};
+
+use crate::RGB;
 
 // Baed on: https://github.com/pimoroni/unicorn-hat-hd/blob/master/library/unicornhathd/__init__.py
 
@@ -15,7 +16,8 @@ pub struct Unicorn {
 
 impl Unicorn {
     pub fn new() -> Self {
-        let mut spi = Spidev::open("/dev/spidev0.0").expect("Do you have sufficient permissions to '/dev/spidev0.0' ?");
+        let mut spi = Spidev::open("/dev/spidev0.0")
+            .expect("Do you have sufficient permissions to '/dev/spidev0.0' ?");
         let options = SpidevOptions::new()
             .bits_per_word(8)
             .max_speed_hz(9_000_000)
@@ -77,7 +79,7 @@ mod tests {
         let g = RGB::new(0, 255, 0);
         let b = RGB::new(0, 0, 255);
 
-        display.set_xy(0,0, &r);
+        display.set_xy(0, 0, &r);
         display.set_xy(1, 0, &r);
         display.set_xy(2, 0, &r);
 
