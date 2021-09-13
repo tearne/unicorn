@@ -1,3 +1,4 @@
+use rgb::RGB8;
 use rppal::gpio::{Gpio, InputPin, Trigger};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions};
 use std::{
@@ -9,8 +10,6 @@ use tokio::{
     sync::watch::{channel, Receiver},
     task::JoinHandle,
 };
-
-use crate::RGB;
 
 // Based on:
 // https://github.com/pimoroni/unicornhatmini-python/blob/master/library/unicornhatmini/__init__.py
@@ -268,7 +267,7 @@ impl UnicornMini {
         self.button_rx.clone()
     }
 
-    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB) {
+    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB8) {
         let idx = x * 7 + y;
         assert!(x < 17, "LED x index out of range: {}", idx);
         assert!(y < 7, "LED y index out of range: {}", idx);
@@ -276,7 +275,7 @@ impl UnicornMini {
         self.set_idx(idx, rgb);
     }
 
-    pub fn set_idx(&mut self, idx: usize, rgb: &RGB) {
+    pub fn set_idx(&mut self, idx: usize, rgb: &RGB8) {
         assert!(idx < 119, "LED index out of range: {}", idx);
         let [ir, ig, ib] = LUT[idx];
         self.data_buf[ir] = rgb.r;
