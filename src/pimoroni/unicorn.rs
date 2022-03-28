@@ -49,7 +49,7 @@ impl Unicorn {
     }
 
     pub fn flush(&mut self) {
-        self.spi.write(&self.buffer).expect("SPI write error");
+        self.spi.write_all(&self.buffer).expect("SPI write error");
         std::thread::sleep(Duration::from_millis(DELAY));
     }
 
@@ -57,6 +57,12 @@ impl Unicorn {
         self.buffer = [0; BUF_SIZE];
         self.buffer[0] = SOF;
         self.flush();
+    }
+}
+
+impl Default for Unicorn {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -74,9 +80,9 @@ mod tests {
     #[test]
     fn test_unicorn() {
         let mut display = Unicorn::new();
-        let r = RGB::new(255, 0, 0);
-        let g = RGB::new(0, 255, 0);
-        let b = RGB::new(0, 0, 255);
+        let r = RGB8::new(255, 0, 0);
+        let g = RGB8::new(0, 255, 0);
+        let b = RGB8::new(0, 0, 255);
 
         display.set_xy(0, 0, &r);
         display.set_xy(1, 0, &r);

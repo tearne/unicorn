@@ -305,14 +305,20 @@ impl UnicornMini {
         // Send data to both chips
         for i in 0..2 {
             let spi = &mut self.spi[i];
-            if data.len() > 0 {
+            if data.is_empty() {
                 let chunk = &data[Self::buf_offset(i)];
-                spi.write(&concat(&prefix, &chunk))
+                spi.write_all(&concat(prefix, chunk))
                     .expect("SPI write error");
             } else {
-                spi.write(&prefix).expect("SPI write error");
+                spi.write_all(prefix).expect("SPI write error");
             }
         }
+    }
+}
+
+impl Default for UnicornMini {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

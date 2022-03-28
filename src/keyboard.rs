@@ -66,25 +66,22 @@ fn all_keyboard_device_filenames() -> Vec<String> {
         let mut filename = None;
         let mut filenames = Vec::new();
 
-        for line in reader.lines() {
-            if let Ok(line) = line {
-                if line.starts_with("H: Handlers=") {
-                    if let Some(event_index) = line.find("event") {
-                        let last_index = line[event_index..line.len() - 1]
-                            .find(" ")
-                            .and_then(|i| Some(i + event_index))
-                            .unwrap_or(line.len() - 1);
-                        filename = Some(line[event_index..last_index].to_owned());
-                    }
-                } else if line.starts_with("B: EV=")
-                    && (line.contains("120013") || line.contains("100013"))
-                {
-                    if let Some(ref filename) = filename {
-                        filenames.push(filename.clone());
-                    }
+        reader.lines().flatten().for_each(|line|{
+            if line.starts_with("H: Handlers=") {
+                if let Some(event_index) = line.find("event") {
+                    let last_index = line[event_index..line.len() - 1]
+                        .find(' ').map(|i| i + event_index)
+                        .unwrap_or(line.len() - 1);
+                    filename = Some(line[event_index..last_index].to_owned());
+                }
+            } else if line.starts_with("B: EV=")
+                && (line.contains("120013") || line.contains("100013"))
+            {
+                if let Some(ref filename) = filename {
+                    filenames.push(filename.clone());
                 }
             }
-        }
+        });
 
         filenames
     })
@@ -100,7 +97,7 @@ impl InputDevice {
     pub fn open(device_file: &str) -> Result<Self, BoxedError> {
         let device_file = File::open(device_file)?;
         Ok(InputDevice {
-            device_file: device_file,
+            device_file,
             buf: [0u8; SIZE_OF_INPUT_EVENT],
         })
     }
@@ -108,7 +105,7 @@ impl InputDevice {
     pub fn read_event(&mut self) -> Result<input_event, BoxedError> {
         let num_bytes = self.device_file.read(&mut self.buf)?;
         if num_bytes != SIZE_OF_INPUT_EVENT {
-            return Err(AppError::boxed("ShortRead".into()));
+            return Err(AppError::boxed("ShortRead"));
         }
         let event: input_event = unsafe { mem::transmute(self.buf) };
         Ok(event)
