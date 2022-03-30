@@ -8,7 +8,7 @@ use std::{
 };
 use tokio::{
     sync::watch::{channel, Receiver},
-    task::JoinHandle,
+    task::JoinHandle, runtime::Runtime,
 };
 
 // Based on:
@@ -180,10 +180,9 @@ pub struct UnicornMini {
     data_buf: [u8; BUF_SIZE * 2],
     spi: [Spidev; 2],
     button_rx: Receiver<Option<Button>>,
-    pub button_join_handle: JoinHandle<()>,
 }
 impl UnicornMini {
-    pub fn new() -> Self {
+    pub fn new(rt: &Runtime) -> Self {
         let mut gpio = Gpio::new().unwrap();
 
         fn get_pin(gpio: &mut Gpio, id: u8) -> InputPin {
@@ -201,7 +200,8 @@ impl UnicornMini {
 
         let (tx, button_rx) = channel(Option::<Button>::None);
 
-        let button_join_handle: JoinHandle<()> = tokio::task::spawn_blocking(move || {
+        let _guard = rt.enter();
+        let _: JoinHandle<()> = tokio::task::spawn_blocking(move || {
             let p: [&InputPin; 4] = [&pins[0], &pins[1], &pins[2], &pins[3]];
 
             let mut prev_time = SystemTime::now();
@@ -244,7 +244,6 @@ impl UnicornMini {
             data_buf: [0; BUF_SIZE * 2],
             spi: [get_spi("/dev/spidev0.0"), get_spi("/dev/spidev0.1")],
             button_rx,
-            button_join_handle,
         };
 
         um.reset();
@@ -305,7 +304,7 @@ impl UnicornMini {
         // Send data to both chips
         for i in 0..2 {
             let spi = &mut self.spi[i];
-            if data.is_empty() {
+            if !data.is_empty() {
                 let chunk = &data[Self::buf_offset(i)];
                 spi.write_all(&concat(prefix, chunk))
                     .expect("SPI write error");
@@ -313,12 +312,6 @@ impl UnicornMini {
                 spi.write_all(prefix).expect("SPI write error");
             }
         }
-    }
-}
-
-impl Default for UnicornMini {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
