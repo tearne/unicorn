@@ -4,10 +4,10 @@ use spidev::{SpiModeFlags, Spidev, SpidevOptions};
 use std::{
     io::Write,
     ops::Range,
-    time::{Duration, SystemTime},
+    time::{Duration, SystemTime}, cell::RefCell,
 };
 use tokio::{
-    sync::watch::{channel, Receiver},
+    sync::watch::Receiver,
     task::JoinHandle, runtime::Runtime,
 };
 
@@ -179,29 +179,63 @@ impl Button {
 pub struct UnicornMini {
     data_buf: [u8; BUF_SIZE * 2],
     spi: [Spidev; 2],
-    button_rx: Receiver<Option<Button>>,
+    button_rx: RefCell<Option<Receiver<Option<Button>>>>,
 }
 impl UnicornMini {
-    pub fn new(rt: &Runtime) -> Self {
-        let mut gpio = Gpio::new().unwrap();
-
-        fn get_pin(gpio: &mut Gpio, id: u8) -> InputPin {
-            let mut pin = gpio.get(id).unwrap().into_input_pullup();
-            pin.set_interrupt(Trigger::Both).unwrap();
-            pin
+    pub fn new() -> Self {
+        fn get_spi(address: &str) -> Spidev {
+            let mut spi = Spidev::open(address).unwrap();
+            let options = SpidevOptions::new()
+                .max_speed_hz(600_000)
+                .bits_per_word(8)
+                .mode(SpiModeFlags::SPI_MODE_0)
+                .build();
+            spi.configure(&options).expect("SPI config error");
+            spi
         }
 
-        let pins = [
-            get_pin(&mut gpio, Button::A.pin()),
-            get_pin(&mut gpio, Button::B.pin()),
-            get_pin(&mut gpio, Button::X.pin()),
-            get_pin(&mut gpio, Button::Y.pin()),
-        ];
+        let mut um = Self {
+            data_buf: [0; BUF_SIZE * 2],
+            spi: [get_spi("/dev/spidev0.0"), get_spi("/dev/spidev0.1")],
+            button_rx: RefCell::new(None),
+        };
 
-        let (tx, button_rx) = channel(Option::<Button>::None);
+        um.reset();
 
-        let _guard = rt.enter();
+        um
+    }
+
+    pub fn reset(&mut self) {
+        self.write_prefix(&CMD_SOFT_RESET, Some(&[]));
+        self.write_prefix(&CMD_GLOBAL_BRIGHTNESS, Some(&[]));
+        self.write_prefix(&CMD_SCROLL_CTRL, Some(&[]));
+        self.write_prefix(&CMD_SYSTEM_CTRL_OFF, Some(&[]));
+        self.write_prefix(&CMD_WRITE_DISPLAY, None); //TODO without clone
+        self.write_prefix(&CMD_COM_PIN_CTRL, Some(&[]));
+        self.write_prefix(&CMD_ROW_PIN_CTRL, Some(&[]));
+        self.write_prefix(&CMD_SYSTEM_CTRL_ON, Some(&[]));
+    }
+
+    fn start_button_watch(runtime: &Runtime) -> Receiver<Option<Button>> {
+        let (tx, rx) = tokio::sync::watch::channel(None);
+
+        let _guard = runtime.enter();
         let _: JoinHandle<()> = tokio::task::spawn_blocking(move || {
+            let mut gpio = Gpio::new().unwrap();
+
+            fn get_pin(gpio: &mut Gpio, id: u8) -> InputPin {
+                let mut pin = gpio.get(id).unwrap().into_input_pullup();
+                pin.set_interrupt(Trigger::Both).unwrap();
+                pin
+            }
+    
+            let pins = [
+                get_pin(&mut gpio, Button::A.pin()),
+                get_pin(&mut gpio, Button::B.pin()),
+                get_pin(&mut gpio, Button::X.pin()),
+                get_pin(&mut gpio, Button::Y.pin()),
+            ];
+
             let p: [&InputPin; 4] = [&pins[0], &pins[1], &pins[2], &pins[3]];
 
             let mut prev_time = SystemTime::now();
@@ -229,41 +263,19 @@ impl UnicornMini {
             }
         });
 
-        fn get_spi(address: &str) -> Spidev {
-            let mut spi = Spidev::open(address).unwrap();
-            let options = SpidevOptions::new()
-                .max_speed_hz(600_000)
-                .bits_per_word(8)
-                .mode(SpiModeFlags::SPI_MODE_0)
-                .build();
-            spi.configure(&options).expect("SPI config error");
-            spi
+        rx
+    }
+
+    pub fn button_subscribe(&mut self, runtime: &Runtime) -> Receiver<Option<Button>> {
+        let mut ref_mut = self.button_rx.borrow_mut();
+
+        if let Some(rx) = &*ref_mut {
+            rx.clone()
+        } else {
+            let rx = Self::start_button_watch(runtime);
+            *ref_mut = Some(rx.clone());
+            rx
         }
-
-        let mut um = Self {
-            data_buf: [0; BUF_SIZE * 2],
-            spi: [get_spi("/dev/spidev0.0"), get_spi("/dev/spidev0.1")],
-            button_rx,
-        };
-
-        um.reset();
-
-        um
-    }
-
-    pub fn reset(&mut self) {
-        self.write_prefix(&CMD_SOFT_RESET, Some(&[]));
-        self.write_prefix(&CMD_GLOBAL_BRIGHTNESS, Some(&[]));
-        self.write_prefix(&CMD_SCROLL_CTRL, Some(&[]));
-        self.write_prefix(&CMD_SYSTEM_CTRL_OFF, Some(&[]));
-        self.write_prefix(&CMD_WRITE_DISPLAY, None); //TODO without clone
-        self.write_prefix(&CMD_COM_PIN_CTRL, Some(&[]));
-        self.write_prefix(&CMD_ROW_PIN_CTRL, Some(&[]));
-        self.write_prefix(&CMD_SYSTEM_CTRL_ON, Some(&[]));
-    }
-
-    pub fn button_subscribe(&self) -> Receiver<Option<Button>> {
-        self.button_rx.clone()
     }
 
     pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB8) {
@@ -312,6 +324,12 @@ impl UnicornMini {
                 spi.write_all(prefix).expect("SPI write error");
             }
         }
+    }
+}
+
+impl Default for UnicornMini {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
