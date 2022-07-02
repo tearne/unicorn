@@ -3,6 +3,8 @@ use std::{io::Write, time::Duration};
 use rgb::RGB8;
 use spidev::{SpiModeFlags, Spidev, SpidevOptions};
 
+use super::{Display, Dimensions};
+
 // Based on: https://github.com/pimoroni/unicorn-hat-hd/blob/master/library/unicornhathd/__init__.py
 
 const SOF: u8 = 0x72;
@@ -11,6 +13,7 @@ const DELAY: u64 = 9;
 pub struct Unicorn {
     spi: Spidev,
     buffer: [u8; BUF_SIZE],
+    dims: Dimensions,
 }
 
 impl Unicorn {
@@ -27,36 +30,10 @@ impl Unicorn {
         let mut display = Unicorn {
             spi,
             buffer: [0; BUF_SIZE],
+            dims: Dimensions { width: 16, height: 16 }
         };
         display.reset();
         display
-    }
-
-    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB8) {
-        let idx = x + y * 16;
-        assert!(x < 16, "LED x index out of range: {}", idx);
-        assert!(y < 16, "LED y index out of range: {}", idx);
-
-        self.set_idx(idx, rgb);
-    }
-
-    pub fn set_idx(&mut self, idx: usize, rgb: &RGB8) {
-        // Buffer indexes are offset by 1 because of 0x72 at start
-        let i = idx * 3 + 1;
-        self.buffer[i] = rgb.r;
-        self.buffer[i + 1] = rgb.g;
-        self.buffer[i + 2] = rgb.b;
-    }
-
-    pub fn flush(&mut self) {
-        self.spi.write_all(&self.buffer).expect("SPI write error");
-        std::thread::sleep(Duration::from_millis(DELAY));
-    }
-
-    pub fn reset(&mut self) {
-        self.buffer = [0; BUF_SIZE];
-        self.buffer[0] = SOF;
-        self.flush();
     }
 }
 
@@ -72,9 +49,42 @@ impl Drop for Unicorn {
     }
 }
 
+impl Display for Unicorn {
+    fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB8) {
+        let idx = x + y * 16;
+        assert!(x < 16, "LED x index out of range: {}", idx);
+        assert!(y < 16, "LED y index out of range: {}", idx);
+
+        self.set_idx(idx, rgb);
+    }
+
+    fn set_idx(&mut self, idx: usize, rgb: &RGB8) {
+        // Buffer indexes are offset by 1 because of 0x72 at start
+        let i = idx * 3 + 1;
+        self.buffer[i] = rgb.r;
+        self.buffer[i + 1] = rgb.g;
+        self.buffer[i + 2] = rgb.b;
+    }
+
+    fn flush(&mut self) {
+        self.spi.write_all(&self.buffer).expect("SPI write error");
+        std::thread::sleep(Duration::from_millis(DELAY));
+    }
+
+    fn reset(&mut self) {
+        self.buffer = [0; BUF_SIZE];
+        self.buffer[0] = SOF;
+        self.flush();
+    }
+
+    fn dimensions(&self) -> &Dimensions {
+        &self.dims
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Unicorn, RGB8};
+    use super::{Unicorn, RGB8, Display};
     use std::time::Duration;
 
     #[test]

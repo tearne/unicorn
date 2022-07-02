@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use rand::Rng;
 use rgb::RGB8;
 use tokio::runtime::Runtime;
-use unicorn::pimoroni::unicornmini::{UnicornMini, Button};
+use unicorn::pimoroni::{unicornmini::{UnicornMini, Button}, Display};
 
 fn main() -> Result<()> {
     color_eyre::install()?;

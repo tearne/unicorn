@@ -11,6 +11,8 @@ use tokio::{
     task::JoinHandle, runtime::Runtime,
 };
 
+use super::{Display, Dimensions};
+
 // Based on:
 // https://github.com/pimoroni/unicornhatmini-python/blob/master/library/unicornhatmini/__init__.py
 
@@ -180,6 +182,7 @@ pub struct UnicornMini {
     data_buf: [u8; BUF_SIZE * 2],
     spi: [Spidev; 2],
     button_rx: RefCell<Option<Receiver<Option<Button>>>>,
+    dims: Dimensions,
 }
 impl UnicornMini {
     pub fn new() -> Self {
@@ -198,22 +201,12 @@ impl UnicornMini {
             data_buf: [0; BUF_SIZE * 2],
             spi: [get_spi("/dev/spidev0.0"), get_spi("/dev/spidev0.1")],
             button_rx: RefCell::new(None),
+            dims: Dimensions { width: 17, height: 7 }
         };
 
         um.reset();
 
         um
-    }
-
-    pub fn reset(&mut self) {
-        self.write_prefix(&CMD_SOFT_RESET, Some(&[]));
-        self.write_prefix(&CMD_GLOBAL_BRIGHTNESS, Some(&[]));
-        self.write_prefix(&CMD_SCROLL_CTRL, Some(&[]));
-        self.write_prefix(&CMD_SYSTEM_CTRL_OFF, Some(&[]));
-        self.write_prefix(&CMD_WRITE_DISPLAY, None); //TODO without clone
-        self.write_prefix(&CMD_COM_PIN_CTRL, Some(&[]));
-        self.write_prefix(&CMD_ROW_PIN_CTRL, Some(&[]));
-        self.write_prefix(&CMD_SYSTEM_CTRL_ON, Some(&[]));
     }
 
     fn start_button_watch(runtime: &Runtime) -> Receiver<Option<Button>> {
@@ -278,25 +271,6 @@ impl UnicornMini {
         }
     }
 
-    pub fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB8) {
-        let idx = x * 7 + y;
-        assert!(x < 17, "LED x index out of range: {}", idx);
-        assert!(y < 7, "LED y index out of range: {}", idx);
-
-        self.set_idx(idx, rgb);
-    }
-
-    pub fn set_idx(&mut self, idx: usize, rgb: &RGB8) {
-        assert!(idx < 119, "LED index out of range: {}", idx);
-        let [ir, ig, ib] = LUT[idx];
-        self.data_buf[ir] = rgb.r;
-        self.data_buf[ig] = rgb.g;
-        self.data_buf[ib] = rgb.b;
-    }
-    pub fn flush(&mut self) {
-        self.write(None);
-    }
-
     fn buf_offset(buffer_idx: usize) -> Range<usize> {
         buffer_idx * BUF_SIZE..(buffer_idx + 1) * BUF_SIZE
     }
@@ -336,5 +310,42 @@ impl Default for UnicornMini {
 impl Drop for UnicornMini {
     fn drop(&mut self) {
         self.reset();
+    }
+}
+
+impl Display for UnicornMini {
+    fn set_xy(&mut self, x: usize, y: usize, rgb: &RGB8) {
+        let idx = x * 7 + y;
+        assert!(x < 17, "LED x index out of range: {}", idx);
+        assert!(y < 7, "LED y index out of range: {}", idx);
+
+        self.set_idx(idx, rgb);
+    }
+
+    fn set_idx(&mut self, idx: usize, rgb: &RGB8) {
+        assert!(idx < 119, "LED index out of range: {}", idx);
+        let [ir, ig, ib] = LUT[idx];
+        self.data_buf[ir] = rgb.r;
+        self.data_buf[ig] = rgb.g;
+        self.data_buf[ib] = rgb.b;
+    }
+    
+    fn flush(&mut self) {
+        self.write(None);
+    }
+
+    fn reset(&mut self) {
+        self.write_prefix(&CMD_SOFT_RESET, Some(&[]));
+        self.write_prefix(&CMD_GLOBAL_BRIGHTNESS, Some(&[]));
+        self.write_prefix(&CMD_SCROLL_CTRL, Some(&[]));
+        self.write_prefix(&CMD_SYSTEM_CTRL_OFF, Some(&[]));
+        self.write_prefix(&CMD_WRITE_DISPLAY, None); //TODO without clone
+        self.write_prefix(&CMD_COM_PIN_CTRL, Some(&[]));
+        self.write_prefix(&CMD_ROW_PIN_CTRL, Some(&[]));
+        self.write_prefix(&CMD_SYSTEM_CTRL_ON, Some(&[]));
+    }
+
+    fn dimensions(&self) -> &Dimensions {
+        &self.dims
     }
 }
