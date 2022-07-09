@@ -88,11 +88,11 @@ impl PixelGridPercentage {
         let change = num_px_required as isize - self.active.len() as isize;
 
         match change.cmp(&0) {
-            std::cmp::Ordering::Less => {
+            std::cmp::Ordering::Equal => {
                 self.refresh()?;
             }
-            std::cmp::Ordering::Equal => {
-                self.deactivate((-change) as usize)?;
+            std::cmp::Ordering::Less => {
+                self.deactivate(-change as usize)?;
                 self.refresh()?;
             }
             std::cmp::Ordering::Greater => {
