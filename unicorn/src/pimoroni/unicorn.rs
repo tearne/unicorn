@@ -3,7 +3,7 @@ use std::{io::Write, time::Duration};
 use rgb::RGB8;
 use spidev::{SpiModeFlags, Spidev, SpidevOptions};
 
-use super::{Display, Dimensions};
+use super::{Dimensions, Display};
 
 // Based on: https://github.com/pimoroni/unicorn-hat-hd/blob/master/library/unicornhathd/__init__.py
 
@@ -30,7 +30,10 @@ impl Unicorn {
         let mut display = Unicorn {
             spi,
             buffer: [0; BUF_SIZE],
-            dims: Dimensions { width: 16, height: 16 }
+            dims: Dimensions {
+                width: 16,
+                height: 16,
+            },
         };
         display.reset();
         display
@@ -84,7 +87,7 @@ impl Display for Unicorn {
 
 #[cfg(test)]
 mod tests {
-    use super::{Unicorn, RGB8, Display};
+    use super::{Display, Unicorn, RGB8};
     use std::time::Duration;
 
     #[test]

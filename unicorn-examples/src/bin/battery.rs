@@ -1,42 +1,47 @@
 use std::{process::Command, time::Duration};
 
-use color_eyre::{Result, eyre::Context};
-use rgb::RGB8;
-use unicorn::pimoroni::{unicornmini::UnicornMini, Display, unicorn::Unicorn};
 use clap::Parser;
+use color_eyre::{eyre::Context, Result};
+use rgb::RGB8;
+use unicorn::pimoroni::{unicorn::Unicorn, unicornmini::UnicornMini, Display};
 
-static GREEN: RGB8 = RGB8::new(0,20,0);
-static BLUE: RGB8 = RGB8::new(0,0,20);
-static BLACK: RGB8 = RGB8::new(0,0,0);
+static GREEN: RGB8 = RGB8::new(0, 20, 0);
+static BLUE: RGB8 = RGB8::new(0, 0, 20);
+static BLACK: RGB8 = RGB8::new(0, 0, 0);
 
 #[derive(Debug)]
-enum State{
-    Live{
-        percentage: f32,
-        voltage: f32
-    
-    },
-    Standby{
-        percentage: f32,
-        voltage: f32
-    },
+enum State {
+    Live { percentage: f32, voltage: f32 },
+    Standby { percentage: f32, voltage: f32 },
 }
 impl State {
     pub fn percentage(&self) -> f32 {
         match self {
-            State::Live { percentage , voltage: _} => *percentage,
-            State::Standby { percentage, voltage: _} => *percentage,
+            State::Live {
+                percentage,
+                voltage: _,
+            } => *percentage,
+            State::Standby {
+                percentage,
+                voltage: _,
+            } => *percentage,
         }
     }
 
     pub fn colour(&self) -> RGB8 {
         match self {
-            State::Live { percentage: _ , voltage: _ } => GREEN,
-            State::Standby { percentage: _, voltage: _ } => BLUE,
+            State::Live {
+                percentage: _,
+                voltage: _,
+            } => GREEN,
+            State::Standby {
+                percentage: _,
+                voltage: _,
+            } => BLUE,
         }
     }
 }
-struct Battery{
+struct Battery {
     full: f32,
     critical: f32,
     live_denom: f32,
@@ -50,12 +55,12 @@ impl Battery {
             dims.width * dims.height
         };
 
-        Self { 
-            full: 3.2, 
+        Self {
+            full: 3.2,
             critical: 2.95,
             live_denom: 3.2 - 2.95,
             standby_denom: 3.6 - 3.2,
-            num_px
+            num_px,
         }
     }
 
@@ -64,10 +69,16 @@ impl Battery {
         if voltage > self.full {
             let percentage = (voltage - self.full) / self.standby_denom;
             let percentage = percentage.min(1.0);
-            Ok(State::Standby{percentage, voltage})
+            Ok(State::Standby {
+                percentage,
+                voltage,
+            })
         } else {
             let percentage = (voltage - self.critical) / self.live_denom;
-            Ok(State::Live{percentage, voltage})
+            Ok(State::Live {
+                percentage,
+                voltage,
+            })
         }
     }
 
@@ -90,9 +101,9 @@ impl Battery {
         log::info!("{:?}", state);
 
         let dots = (self.num_px as f32 * state.percentage()).ceil() as usize;
-        
+
         for _ in 0..dots {
-            pixels.push(state.colour());  
+            pixels.push(state.colour());
         }
         for _ in dots..self.num_px {
             pixels.push(BLACK);
@@ -102,14 +113,13 @@ impl Battery {
     }
 }
 
-
 fn go<T: Display>(mut display: T) -> Result<()> {
     let battery: Battery = Battery::new(&display);
-    
+
     loop {
         let px = battery.get_colours()?;
-     
-        for (idx, rgb) in px.iter().enumerate() {            
+
+        for (idx, rgb) in px.iter().enumerate() {
             display.set_idx(idx, rgb);
         }
         display.flush();
@@ -120,10 +130,11 @@ fn go<T: Display>(mut display: T) -> Result<()> {
 
 #[derive(Parser, Clone)]
 enum Mode {
-    UnicornMini, Unicorn
+    UnicornMini,
+    Unicorn,
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     env_logger::init();
 
     match Mode::parse() {

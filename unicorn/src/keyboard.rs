@@ -66,11 +66,12 @@ fn all_keyboard_device_filenames() -> Vec<String> {
         let mut filename = None;
         let mut filenames = Vec::new();
 
-        reader.lines().flatten().for_each(|line|{
+        reader.lines().flatten().for_each(|line| {
             if line.starts_with("H: Handlers=") {
                 if let Some(event_index) = line.find("event") {
                     let last_index = line[event_index..line.len() - 1]
-                        .find(' ').map(|i| i + event_index)
+                        .find(' ')
+                        .map(|i| i + event_index)
                         .unwrap_or(line.len() - 1);
                     filename = Some(line[event_index..last_index].to_owned());
                 }

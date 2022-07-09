@@ -1,34 +1,38 @@
 use std::time::Duration;
 
 use clap::Parser;
+use color_eyre::{eyre::eyre, Result};
 use rand::{prelude::ThreadRng, Rng};
 use rgb::RGB8;
-use unicorn::pimoroni::{Display, unicornmini::UnicornMini, unicorn::Unicorn};
-use color_eyre::{Result, eyre::eyre};
+use unicorn::pimoroni::{unicorn::Unicorn, unicornmini::UnicornMini, Display};
 use unicorn_examples::psutil::ram;
 
-static GREEN: RGB8 = RGB8::new(0,20,0);
-static BLACK: RGB8 = RGB8::new(0,0,0);
+static GREEN: RGB8 = RGB8::new(0, 20, 0);
+static BLACK: RGB8 = RGB8::new(0, 0, 0);
 
-struct Pixels {
+struct PixelGridPercentage {
     active: Vec<usize>,
     inactive: Vec<usize>,
-    num: usize,
+    num_px: usize,
     rng: ThreadRng,
 }
-impl Pixels {
+impl PixelGridPercentage {
     pub fn new(num: usize) -> Self {
-        Pixels { 
-            active: Vec::new(), 
-            inactive: (0..num).collect(), 
-            num,
+        PixelGridPercentage {
+            active: Vec::new(),
+            inactive: (0..num).collect(),
+            num_px: num,
             rng: rand::thread_rng(),
         }
     }
 
-    fn deactivate(&mut self, n: usize)  -> Result<()> {
+    fn deactivate(&mut self, n: usize) -> Result<()> {
         if n > self.active.len() {
-            return Err(eyre!("Can't deactivate {} pixels when only {} are active.", n, self.active.len()));
+            return Err(eyre!(
+                "Can't deactivate {} pixels when only {} are active.",
+                n,
+                self.active.len()
+            ));
         }
 
         for _ in 0..n {
@@ -42,11 +46,11 @@ impl Pixels {
 
     fn activate(&mut self, n: usize) -> Result<()> {
         if n > self.inactive.len() {
-            return Err(
-                eyre!("Can't deactivate {} pixels when only {} are active.", 
-                n, 
-                self.active.len())
-            );
+            return Err(eyre!(
+                "Can't deactivate {} pixels when only {} are active.",
+                n,
+                self.active.len()
+            ));
         }
 
         for _ in 0..n {
@@ -59,10 +63,10 @@ impl Pixels {
     }
 
     fn refresh(&mut self) -> Result<()> {
-        if self.active.len() > 0 {
+        if !self.active.is_empty() {
             let mut keeping = Vec::new();
             for index in 0..self.active.len() {
-                if self.rng.gen_bool(0.04) {
+                if self.rng.gen_bool(0.01) {
                     let px = self.active[index];
                     self.inactive.push(px);
                 } else {
@@ -72,34 +76,36 @@ impl Pixels {
             let num_lost = self.active.len() - keeping.len();
             self.active = keeping;
             self.activate(num_lost)
+        } else {
+            Ok(())
         }
-        else { Ok(()) }
     }
 
-    pub fn update(&mut self, n: isize) -> Result<()> {
-        
-        let change = n - self.active.len() as isize;
-        println!("Asked for {}, currently {}, change {}", n, self.active.len(), change);
-        
+    pub fn update(&mut self, percentage: f32) -> Result<()> {
+        log::info!("RAM {:.1}%", percentage * 100.0);
+        let num_px_required = (self.num_px as f32 * percentage) as usize;
+
+        let change = num_px_required as isize - self.active.len() as isize;
+
         match change.cmp(&0) {
             std::cmp::Ordering::Less => {
-                self.refresh();
-            },
+                self.refresh()?;
+            }
             std::cmp::Ordering::Equal => {
-                self.deactivate((-change) as usize);
-                self.refresh();
-            },
+                self.deactivate((-change) as usize)?;
+                self.refresh()?;
+            }
             std::cmp::Ordering::Greater => {
-                self.refresh();
-                self.activate(change as usize);
-            },
+                self.refresh()?;
+                self.activate(change as usize)?;
+            }
         }
 
         Ok(())
     }
 
     pub fn get_pixel_status(&self) -> Vec<bool> {
-        let mut result = vec![false; self.num];//(0..self.num).collect::<Vec<bool>>();
+        let mut result = vec![false; self.num_px]; //(0..self.num).collect::<Vec<bool>>();
 
         for px in self.active.iter() {
             result[*px] = true;
@@ -110,35 +116,30 @@ impl Pixels {
 }
 
 fn go_dots<T: Display>(mut display: T) -> Result<()> {
-    let num_dots = display.dimensions().num_px();
-    let mut num_live_dots = (num_dots as f32 * ram::percentage_used()) as usize;
-
-
-    let mut pixels = Pixels::new(num_dots);
+    let mut pixels = {
+        let num_dots = display.dimensions().num_px();
+        PixelGridPercentage::new(num_dots)
+    };
 
     loop {
-        let num = (num_dots as f32 * ram::percentage_used()) as isize;
-        println!("num = {}", num);
-        pixels.update(num);
+        pixels.update(ram::percentage_used())?;
         for (idx, state) in pixels.get_pixel_status().iter().enumerate() {
-            display.set_idx(idx, if *state {&GREEN} else {&BLACK});
+            display.set_idx(idx, if *state { &GREEN } else { &BLACK });
         }
 
         display.flush();
 
         std::thread::sleep(Duration::from_millis(1000));
     }
-
-    Ok(())
 }
-
 
 #[derive(Parser, Clone)]
 enum Mode {
-    UnicornMini, Unicorn
+    UnicornMini,
+    Unicorn,
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     env_logger::init();
 
     match Mode::parse() {

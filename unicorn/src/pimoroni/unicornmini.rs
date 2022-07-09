@@ -2,16 +2,14 @@ use rgb::RGB8;
 use rppal::gpio::{Gpio, InputPin, Trigger};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions};
 use std::{
+    cell::RefCell,
     io::Write,
     ops::Range,
-    time::{Duration, SystemTime}, cell::RefCell,
+    time::{Duration, SystemTime},
 };
-use tokio::{
-    sync::watch::Receiver,
-    task::JoinHandle, runtime::Runtime,
-};
+use tokio::{runtime::Runtime, sync::watch::Receiver, task::JoinHandle};
 
-use super::{Display, Dimensions};
+use super::{Dimensions, Display};
 
 // Based on:
 // https://github.com/pimoroni/unicornhatmini-python/blob/master/library/unicornhatmini/__init__.py
@@ -201,7 +199,10 @@ impl UnicornMini {
             data_buf: [0; BUF_SIZE * 2],
             spi: [get_spi("/dev/spidev0.0"), get_spi("/dev/spidev0.1")],
             button_rx: RefCell::new(None),
-            dims: Dimensions { width: 17, height: 7 }
+            dims: Dimensions {
+                width: 17,
+                height: 7,
+            },
         };
 
         um.reset();
@@ -221,7 +222,7 @@ impl UnicornMini {
                 pin.set_interrupt(Trigger::Both).unwrap();
                 pin
             }
-    
+
             let pins = [
                 get_pin(&mut gpio, Button::A.pin()),
                 get_pin(&mut gpio, Button::B.pin()),
@@ -329,7 +330,7 @@ impl Display for UnicornMini {
         self.data_buf[ig] = rgb.g;
         self.data_buf[ib] = rgb.b;
     }
-    
+
     fn flush(&mut self) {
         self.write(None);
     }
