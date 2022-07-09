@@ -1,22 +1,15 @@
-use std::{ops::Range, time::Duration};
+use std::ops::Range;
 
-use clap::{clap_derive::ArgEnum, Parser};
-use color_eyre::Result;
-use log::info;
 use psutil::cpu::CpuTimesPercentCollector;
 use rand::Rng;
-use rgb::RGB8;
-use unicorn::pimoroni::{Display, unicornmini::UnicornMini, unicorn::Unicorn};
+use unicorn::pimoroni::Display;
 
-static RED: RGB8 = RGB8::new(150,0,0);
-static BLACK: RGB8 = RGB8::new(0,0,0);
-
-struct CPU {
+pub struct Cpu {
     quarters: Vec<Vec<usize>>,
     num_px: usize,
     collector: CpuTimesPercentCollector,
 }
-impl CPU {
+impl Cpu {
     pub fn new<T: Display>(display: &T) -> Self {
         fn rect_ids(xs: Range<usize>, yx: Range<usize>) -> Vec<usize> {
             let mut res = Vec::with_capacity(256);
@@ -82,36 +75,4 @@ impl CPU {
 
         pixels
     }
-}
-
-fn go<T: Display>(mut display: T) -> Result<()> {
-    let mut cpu = CPU::new(&display);
-    
-    loop {
-     let px = cpu.get_px();
-     
-        for (idx, cpu) in px.iter().enumerate() {
-            if *cpu { display.set_idx(idx, &RED); } 
-            else { display.set_idx(idx, &BLACK); };
-        }
-        display.flush();
-
-        std::thread::sleep(Duration::from_millis(1000));
-    }
-}
-
-#[derive(Parser, Clone)]
-enum Mode {
-    UnicornMini, Unicorn
-}
-
-fn main() -> Result<()>{
-    env_logger::init();
-
-    match Mode::parse() {
-        Mode::UnicornMini => go(UnicornMini::new())?,
-        Mode::Unicorn => go(Unicorn::new())?,
-    };
-
-    Ok(())
 }

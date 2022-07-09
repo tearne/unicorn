@@ -1,12 +1,9 @@
-use std::{process::Command, time::Duration, ops::Range};
+use std::{process::Command, time::Duration};
 
 use color_eyre::{Result, eyre::Context};
-use log::info;
-use psutil::cpu::CpuTimesPercentCollector;
-use rand::Rng;
 use rgb::RGB8;
 use unicorn::pimoroni::{unicornmini::UnicornMini, Display, unicorn::Unicorn};
-use clap::{ArgEnum, Parser};
+use clap::Parser;
 
 static GREEN: RGB8 = RGB8::new(0,20,0);
 static BLUE: RGB8 = RGB8::new(0,0,20);
@@ -94,10 +91,10 @@ impl Battery {
 
         let dots = (self.num_px as f32 * state.percentage()).ceil() as usize;
         
-        for i in 0..dots {
+        for _ in 0..dots {
             pixels.push(state.colour());  
         }
-        for i in dots..self.num_px {
+        for _ in dots..self.num_px {
             pixels.push(BLACK);
         }
 
