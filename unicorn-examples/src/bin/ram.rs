@@ -62,7 +62,7 @@ impl Pixels {
         if self.active.len() > 0 {
             let mut keeping = Vec::new();
             for index in 0..self.active.len() {
-                if self.rng.gen_bool(0.1) {
+                if self.rng.gen_bool(0.04) {
                     let px = self.active[index];
                     self.inactive.push(px);
                 } else {
@@ -81,23 +81,19 @@ impl Pixels {
         let change = n - self.active.len() as isize;
         println!("Asked for {}, currently {}, change {}", n, self.active.len(), change);
         
-        if change == 0 {
-            println!("==0");
-            self.refresh();
-        } else if change < 0 {
-            println!("<0");
-            self.deactivate((-change) as usize);
-            self.refresh();
-        } else {
-            println!(">0");
-            self.refresh();
-            self.activate(change as usize);
+        match change.cmp(&0) {
+            std::cmp::Ordering::Less => {
+                self.refresh();
+            },
+            std::cmp::Ordering::Equal => {
+                self.deactivate((-change) as usize);
+                self.refresh();
+            },
+            std::cmp::Ordering::Greater => {
+                self.refresh();
+                self.activate(change as usize);
+            },
         }
-
-        // println!("  active {:?}", &self.active);
-        // println!("inactive {:?}", &self.inactive);
-        println!("now {}", self.active.len());
-
 
         Ok(())
     }
@@ -116,10 +112,7 @@ impl Pixels {
 fn go_dots<T: Display>(mut display: T) -> Result<()> {
     let num_dots = display.dimensions().num_px();
     let mut num_live_dots = (num_dots as f32 * ram::percentage_used()) as usize;
-    // let active_indexes: Vec<usize> = Vec::new();
-    // let inactive_indexes: Vec<usize> = (0..num_dots).collect();
 
-    // let mut rng = rand::thread_rng();
 
     let mut pixels = Pixels::new(num_dots);
 
@@ -127,7 +120,6 @@ fn go_dots<T: Display>(mut display: T) -> Result<()> {
         let num = (num_dots as f32 * ram::percentage_used()) as isize;
         println!("num = {}", num);
         pixels.update(num);
-        // println!("{:?}", pixels.get_pixel_status());
         for (idx, state) in pixels.get_pixel_status().iter().enumerate() {
             display.set_idx(idx, if *state {&GREEN} else {&BLACK});
         }
@@ -140,22 +132,6 @@ fn go_dots<T: Display>(mut display: T) -> Result<()> {
     Ok(())
 }
 
-fn go_bar<T: Display>(mut display: T) -> Result<()> {
-    let height = display.dimensions().height;
-
-    loop {
-        let px = ram::colour_array(height);
-
-        for (idx, colour) in px.iter().enumerate() {
-            display.set_xy(1, height - idx -1, colour);
-            display.set_xy(2, height - idx -1, colour); 
-            display.set_xy(3, height - idx -1, colour); 
-        }
-        display.flush();
-
-        std::thread::sleep(Duration::from_millis(1000));
-    }
-}
 
 #[derive(Parser, Clone)]
 enum Mode {
