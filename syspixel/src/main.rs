@@ -1,16 +1,21 @@
+mod cpu;
+mod pixel;
+mod ram;
+
 use std::time::Duration;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use color_eyre::Result;
+use cpu::Cpu;
+use pixel::PixelGrid;
 use rgb::RGB8;
 use unicorn::pimoroni::{unicorn::Unicorn, unicornmini::UnicornMini, Display};
-use unicorn_examples::{psutil::{ram, cpu::Cpu}, pixel::PixelGrid};
 
 static GREEN: RGB8 = RGB8::new(0, 20, 0);
 static RED: RGB8 = RGB8::new(70, 00, 0);
 static BLACK: RGB8 = RGB8::new(0, 0, 0);
 
-fn go_dots<T: Display>(mut display: T) -> Result<()> {
+fn go<T: Display>(mut display: T) -> Result<()> {
     let mut pixels = {
         let num_dots = display.dimensions().num_px();
         PixelGrid::new(num_dots)
@@ -37,7 +42,16 @@ fn go_dots<T: Display>(mut display: T) -> Result<()> {
     }
 }
 
-#[derive(Parser, Clone)]
+#[derive(Parser)]
+// #[clap(author, version, about, long_about = None)]
+// #[clap(propagate_version = true)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Option<Mode>,
+}
+
+// #[derive(Clone)]
+#[derive(Subcommand)]
 enum Mode {
     UnicornMini,
     Unicorn,
@@ -46,10 +60,14 @@ enum Mode {
 fn main() -> Result<()> {
     env_logger::init();
 
-    match Mode::parse() {
-        Mode::UnicornMini => go_dots(UnicornMini::new())?,
-        Mode::Unicorn => go_dots(Unicorn::new())?,
-    };
+    match Cli::parse().command {
+        Some(Mode::UnicornMini ) => go(UnicornMini::new())?,
+        Some(Mode::Unicorn ) => go(Unicorn::new())?,
+        None => {
+            log::info!("Defaulting to Unicorn mode");
+            go(Unicorn::new())?
+        },
+    }
 
     Ok(())
 }

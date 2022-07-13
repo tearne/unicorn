@@ -1,0 +1,10 @@
+[Unit]
+Description=Syspixel service
+After=multi-user.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/syspixel
+
+[Install]
+WantedBy=multi-user.target
