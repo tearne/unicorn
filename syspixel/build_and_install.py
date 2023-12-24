@@ -11,8 +11,15 @@ import site
 def main():
     # Cargo must be installed
     if not run("cargo --version"):
+        input("Press enter to install cargo")
         run("curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh")
     else: print("Cargo already installed")
+
+    if run("cargo deb -v"):
+        input("Press enter to install cargo deb")
+        run("cargo install cargo-deb")
+    else:
+        print("Cargo deb already installed")
 
     # Compile and build deb package
     proj_dir = os.path.dirname(os.path.realpath(__file__))
@@ -46,6 +53,7 @@ class Password:
 
 
 def run(cmd, cwd=None):
+    print("*** running", cmd)
     return subprocess.run(
         cmd,
         shell=True,
